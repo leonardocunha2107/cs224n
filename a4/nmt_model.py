@@ -41,17 +41,14 @@ class NMT(nn.Module):
         self.dropout_rate = dropout_rate
         self.vocab = vocab
 
-        # default values
-        self.encoder = None 
-        self.decoder = None
-        self.h_projection = None
-        self.c_projection = None
-        self.att_projection = None
-        self.combined_output_projection = None
-        self.target_vocab_projection = None
-        self.dropout = None
-
-
+        self.encoder=nn.LSTM(input_size=embed_size,hidden_size=hidden_size,bidirectional=True)
+        self.decoder=nn.LSTMCell(hidden_size,hidden_size)
+        self.h_projection=nn.Linear(2*hidden_size,hidden_size,bias=False)
+        self.c_projection=nn.Linear(2*hidden_size,hidden_size,bias=False)
+        self.att_projection=nn.Linear(2*hidden_size,hidden_size,bias=False)
+        self.combined_output_projection=nn.Linear(3*hidden_size,hidden_size,bias=False)
+        self.target_vocab_projection=nn.Linear(hidden_size,len(vocab.tgt))
+        self.dropout=nn.Dropout(p=dropout_rate)
         ### YOUR CODE HERE (~8 Lines)
         ### TODO - Initialize the following variables:
         ###     self.encoder (Bidirectional LSTM with bias)
@@ -130,7 +127,11 @@ class NMT(nn.Module):
                                                 hidden state and cell.
         """
         enc_hiddens, dec_init_state = None, None
-
+        embeds=self.model_embeddings.src_embed(source_padded)
+        enc_hiddens,last_hidden,last_cell=self.encoder(embeds)
+        h0_dec=self.h_projection(torch.cat(last_hidden[0,:,:],last_hidden[1,:,:]))
+        c0_dec=self.c_projection(torch.cat(last_cell[0,:,:],last_cell[1,:,:]))
+        dec_init_state=(h0_dec,c0_dec)
         ### YOUR CODE HERE (~ 8 Lines)
         ### TODO:
         ###     1. Construct Tensor `X` of source sentences with shape (src_len, b, e) using the source model embeddings.
